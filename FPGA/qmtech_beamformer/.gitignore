@@ -19,3 +19,12 @@
 
 _ide/logs
 _ide/.wsdata
+
+# Local Ubuntu compatibility libraries required by Vivado on newer hosts.
+.vivado-compat/
+vivado_project/
+.Xil/
+vivado.jou
+vivado.log
+*.backup.jou
+*.backup.log

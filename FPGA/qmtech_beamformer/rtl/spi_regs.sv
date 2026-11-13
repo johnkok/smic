@@ -9,6 +9,7 @@ module spi_regs(
  output wire [31:0] gains [0:31],
  output reg [31:0] ctrl, mode, out_gain,
  output reg commit,
+ output reg access,
  input wire [31:0] frame_count,
  input wire [31:0] levels [0:31],
  input wire [31:0] error_flags
@@ -28,7 +29,9 @@ module spi_regs(
  reg [15:0] wraddr_spi;
  reg [31:0] wrdata_spi;
  reg wr_toggle_spi;
+ reg access_toggle_spi;
  reg [2:0] wr_sync;
+ reg [2:0] access_sync;
  reg [31:0] status;
  integer i;
  function automatic [31:0] read_reg(input [15:0] addr);
@@ -55,8 +58,15 @@ module spi_regs(
  endcase
  end endfunction
  // SPI shift domain: capture command, address, then data. Read shifts MSB first.
- always @(posedge sck or posedge cs_n) begin
-  if(cs_n) begin bitpos<=0;opcode<=0;address<=0;payload<=0;rdshift<=0;end
+ always @(posedge sck or posedge cs_n or posedge rst) begin
+  if(rst) begin
+   bitpos<=0;opcode<=0;address<=0;payload<=0;rdshift<=0;
+   wraddr_spi<=0;wrdata_spi<=0;wr_toggle_spi<=0;access_toggle_spi<=0;
+  end else if(cs_n) begin
+   if(bitpos==56 && (opcode==8'h02 || opcode==8'h03))
+    access_toggle_spi<=~access_toggle_spi;
+   bitpos<=0;opcode<=0;address<=0;payload<=0;rdshift<=0;
+  end
   else begin
    if(bitpos<8) opcode<={opcode[6:0],mosi};
    else if(bitpos<24) begin
@@ -76,14 +86,18 @@ module spi_regs(
  assign miso = (!cs_n && opcode==8'h03 && bitpos>=24 && bitpos<56) ? rdshift[31] : 1'b0;
  always @(posedge clk) begin
   if(rst) begin
-   wr_sync<=0;enable_mask<=32'hffffffff;ctrl<=0;mode<=0;out_gain<=32'h00008000;
+   wr_sync<=0;access_sync<=0;access<=0;
+   enable_mask<=32'hffffffff;ctrl<=0;mode<=0;out_gain<=32'h00008000;
    commit<=0;status<=32'd1;
    for(i=0;i<32;i=i+1) begin
     delay_shadow[i]<=0;delay_active[i]<=0;
     gain_shadow[i]<=32'h00008000;gain_active[i]<=32'h00008000;
    end
   end else begin
-   wr_sync<={wr_sync[1:0],wr_toggle_spi};commit<=0;
+   wr_sync<={wr_sync[1:0],wr_toggle_spi};
+   access_sync<={access_sync[1:0],access_toggle_spi};
+   access<=access_sync[2]^access_sync[1];
+   commit<=0;
    if(wr_sync[2]^wr_sync[1]) begin
     case(wraddr_spi)
      16'h0004:ctrl<=wrdata_spi;
