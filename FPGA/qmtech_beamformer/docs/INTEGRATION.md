@@ -1,7 +1,7 @@
 # Integration / hardware review
 
 ## FPGA and clocks
-The project defaults to the XC7A100T-1FGG676C specified by the supplied QMTECH V01 manual. It MUST match the marking on the fitted FPGA. The board's 50 MHz oscillator is not used. Feed an external low-jitter, 3.3 V 12.288 MHz reference to U2-17. This gives PDM_CLK=3.072 MHz, PCM=48 kHz and BCLK=3.072 MHz. Provide adequate timing constraints, especially for asynchronous SPI SCK.
+The project defaults to the XC7A100T-1FGG676C specified by the supplied QMTECH V01 manual. It MUST match the marking on the fitted FPGA. The board's 50 MHz oscillator is not used. Feed an external low-jitter, 3.3 V 12.288 MHz reference to U2-18. U2-18/G20 is the P-side clock-capable input; U2-17/G21 is its N-side partner and cannot directly drive a BUFG as a single-ended input. This gives PDM_CLK=3.072 MHz, PCM=48 kHz and BCLK=3.072 MHz. Provide adequate timing constraints, especially for asynchronous SPI SCK.
 
 ## Physical connectivity
 - 16 PDM data inputs, one shared PDM clock output distributed via a clock buffer with matched branches, 32 microphones in 16 edge-multiplexed pairs.
@@ -15,7 +15,7 @@ U2 is not a 1.8 V connector on this PCB. The selected signals are in FPGA bank 1
 
 | U2 pin | FPGA pin | Signal |
 |---:|---|---|
-| 5 | D26 | SPI SCK |
+| 20 | H21 | SPI SCK, P-side MRCC |
 | 6 | E26 | SPI CS_N |
 | 7 | D25 | SPI MOSI |
 | 8 | E25 | SPI MISO |
@@ -23,23 +23,33 @@ U2 is not a 1.8 V connector on this PCB. The selected signals are in FPGA bank 1
 | 10 | H26 | DAI FS |
 | 11 | E23 | DAI SD |
 | 12 | F23 | Reset, active-low |
-| 17 | G21 | External 12.288 MHz reference |
+| 18 | G20 | External 12.288 MHz reference |
 
 ### U4: microphone board
 
 U4 pins 3 and 4 are the VCCO_34_35 input points only when R14/R15 are removed; they are not microphone power outputs. In this 3.3 V configuration leave R14/R15 fitted and power the microphone board from a separately verified 3.3 V rail. Never connect U4 pins 63/64 (`VIN`) to the microphone board.
 
-| U4 pin | FPGA pin | Signal | U4 pin | FPGA pin | Signal |
-|---:|---|---|---:|---|---|
-| 5 | B5 | PDM_DATA[0] | 13 | C2 | PDM_DATA[8] |
-| 6 | A5 | PDM_DATA[1] | 14 | B2 | PDM_DATA[9] |
-| 7 | B4 | PDM_DATA[2] | 15 | E5 | PDM_DATA[10] |
-| 8 | A4 | PDM_DATA[3] | 16 | D5 | PDM_DATA[11] |
-| 9 | A3 | PDM_DATA[4] | 17 | C1 | PDM_DATA[12] |
-| 10 | A2 | PDM_DATA[5] | 18 | B1 | PDM_DATA[13] |
-| 11 | D4 | PDM_DATA[6] | 19 | E1 | PDM_DATA[14] |
-| 12 | C4 | PDM_DATA[7] | 20 | D1 | PDM_DATA[15] |
-| 21 | F2 | PDM_CLK | | | |
+The SMIC J1 signal row is ordered `CLK, NC, DATA1 ... DATA16` on even pins 2, 4, 6 ... 36; odd pins 1 ... 35 are ground and pins 37 ... 40 are the external 3.3 V input. A direct adapter preserves channel order as follows. This is a logical connector map only: `Board/smic/docs/DESIGN_REVIEW.md` records a DATA/CLOCK pad-routing defect that must be fixed before the microphone PCB is manufactured.
+
+| SMIC J1 | U4 | FPGA pin | RTL signal |
+|---:|---:|---|---|
+| 2 | 21 | F2 | PDM_CLK |
+| 6 | 5 | B5 | PDM_DATA[0] |
+| 8 | 6 | A5 | PDM_DATA[1] |
+| 10 | 7 | B4 | PDM_DATA[2] |
+| 12 | 8 | A4 | PDM_DATA[3] |
+| 14 | 9 | A3 | PDM_DATA[4] |
+| 16 | 10 | A2 | PDM_DATA[5] |
+| 18 | 11 | D4 | PDM_DATA[6] |
+| 20 | 12 | C4 | PDM_DATA[7] |
+| 22 | 13 | C2 | PDM_DATA[8] |
+| 24 | 14 | B2 | PDM_DATA[9] |
+| 26 | 15 | E5 | PDM_DATA[10] |
+| 28 | 16 | D5 | PDM_DATA[11] |
+| 30 | 17 | C1 | PDM_DATA[12] |
+| 32 | 18 | B1 | PDM_DATA[13] |
+| 34 | 19 | E1 | PDM_DATA[14] |
+| 36 | 20 | D1 | PDM_DATA[15] |
 
 ### LEDs
 
@@ -64,4 +74,4 @@ DDR3 is deliberately not instantiated in the current design. The complete 32-cha
 The onboard DDR3 is a sensible future option for raw-audio capture, delays longer than 255 samples, multiple simultaneous beams, or host-accessible diagnostic buffers. Add it as a separate buffered subsystem rather than replacing the current per-frame BRAM engine directly. That work requires a MIG configuration matching the exact fitted DDR3 device and PCB revision, the board's dedicated DDR pinout and electrical constraints, controller reference/reset clocks, calibration-status handling, clock-domain crossing, and FIFOs that absorb refresh/burst latency. None of the DDR3 pins are currently present in `board_template.xdc`, and a bitstream must not be generated from guessed DDR3 parameters.
 
 ## Readiness
-This package is a **functional RTL prototype**, not a verified implementation deliverable. Vivado 2026.1 synthesis for XC7A100T-1FGG676 completes with the history mapped to six RAMB36 blocks. The 2026-11-13 synthesis report uses 6,661 LUTs (10.51%), 9,389 registers (7.40%), 12 DSP48E1s (5.00%), six RAMB36 plus one RAMB18 (4.81% of block-RAM tiles), and reports 64.521 ns setup slack on the constrained 12.288 MHz datapath. The extra RAMB18 holds the reciprocal table. This is pre-place synthesis timing, not implementation timing. External I/O delays and full CDC constraints remain incomplete; the design has not passed place-and-route or been tested on the QMTECH board. Do not assume final timing closure, physical pin compatibility or production-quality audio.
+This package is a **functional RTL prototype**, not a verified production deliverable. Vivado 2026.1 synthesis for XC7A100T-1FGG676 completes with the history mapped to six RAMB36 blocks. The synthesis report uses 6,661 LUTs (10.51%), 9,389 registers (7.40%), 12 DSP48E1s (5.00%), and six RAMB36 plus one RAMB18 (4.81% of block-RAM tiles). The extra RAMB18 holds the reciprocal table. On 2026-11-14, implementation completed with zero unrouted nets, zero bitstream DRC errors, 63.356 ns worst setup slack and 0.023 ns worst hold slack on the constrained clocks. The resulting bitstream was loaded over JTAG into an identified XC7A100T and DONE read back as 1. External I/O delays and full CDC constraints remain incomplete, and audio/SPI operation has not yet been validated on the board. Do not assume production-quality audio or complete interface timing signoff.

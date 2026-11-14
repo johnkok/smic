@@ -6,7 +6,7 @@
 # on this board. If the connected host is 1.8 V, place voltage translators
 # between U2 and the host; do not connect 1.8 V signals directly or merely
 # change these IOSTANDARD properties to LVCMOS18.
-set_property -dict {PACKAGE_PIN D26 IOSTANDARD LVCMOS33} [get_ports spi_sck]          ;# U2-5
+set_property -dict {PACKAGE_PIN H21 IOSTANDARD LVCMOS33} [get_ports spi_sck]          ;# U2-20, P-side MRCC
 set_property -dict {PACKAGE_PIN E26 IOSTANDARD LVCMOS33} [get_ports spi_cs_n]         ;# U2-6
 set_property -dict {PACKAGE_PIN D25 IOSTANDARD LVCMOS33} [get_ports spi_mosi]         ;# U2-7
 set_property -dict {PACKAGE_PIN E25 IOSTANDARD LVCMOS33} [get_ports spi_miso]         ;# U2-8
@@ -14,9 +14,11 @@ set_property -dict {PACKAGE_PIN G26 IOSTANDARD LVCMOS33} [get_ports audio_bclk] 
 set_property -dict {PACKAGE_PIN H26 IOSTANDARD LVCMOS33} [get_ports audio_fs]         ;# U2-10
 set_property -dict {PACKAGE_PIN E23 IOSTANDARD LVCMOS33} [get_ports audio_sd]         ;# U2-11
 set_property -dict {PACKAGE_PIN F23 IOSTANDARD LVCMOS33 PULLUP true} [get_ports rst_n] ;# U2-12
-set_property -dict {PACKAGE_PIN G21 IOSTANDARD LVCMOS33} [get_ports audio_clk_12m288] ;# U2-17, clock-capable
+set_property -dict {PACKAGE_PIN G20 IOSTANDARD LVCMOS33} [get_ports audio_clk_12m288] ;# U2-18, P-side clock-capable
 
 # U4: 16 PDM data pairs and the shared microphone clock, all in bank 35.
+# Direct adapter order is J1-6,8,...,36 -> U4-5,6,...,20 and J1-2 -> U4-21.
+# J1 odd pins are ground; J1-37..40 carry the separately supplied microphone 3.3 V.
 # IM72D128V01 microphones and the FPGA bank are operated at 3.3 V. Leave R14
 # and R15 fitted so VCCO_34_35 remains at the board's default 3.3 V.
 set_property -dict {PACKAGE_PIN B5 IOSTANDARD LVCMOS33} [get_ports {pdm_data[0]}]   ;# U4-5
