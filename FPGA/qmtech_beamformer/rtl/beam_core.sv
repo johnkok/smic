@@ -11,6 +11,7 @@ module beam_core(
  input wire [31:0] enable_mask,
  input wire [31:0] delays [0:31],
  input wire [31:0] gains [0:31],
+ input wire [31:0] polarity_mask,
  input wire [31:0] ctrl, out_gain,
  output reg signed [23:0] beam,
  output reg beam_valid,
@@ -38,7 +39,7 @@ module beam_core(
  reg [3:0] state;
  reg [7:0] delay_int_latched;
  reg [15:0] frac_latched, gain_latched;
- reg enabled_latched, read0_valid, read1_valid;
+ reg enabled_latched, polarity_latched, read0_valid, read1_valid;
  reg signed [46:0] acc, final_acc, normalized;
  reg signed [63:0] scaled;
  reg [5:0] enabled_count, final_count;
@@ -68,7 +69,10 @@ module beam_core(
   $signed(sample0)*$signed(inv_frac) +
   $signed(sample1)*$signed({2'b0,frac_latched});
  wire signed [24:0] interpolated = interp_full >>> 16;
- wire signed [41:0] weighted = interpolated*$signed({1'b0,gain_latched});
+ wire signed [41:0] weighted_magnitude =
+  interpolated*$signed({1'b0,gain_latched});
+ wire signed [41:0] weighted = polarity_latched ?
+  -weighted_magnitude : weighted_magnitude;
  wire signed [46:0] weighted_extended = {{5{weighted[41]}},weighted};
  wire signed [46:0] acc_next = acc +
   (enabled_latched ? weighted_extended : 47'sd0);
@@ -133,7 +137,7 @@ module beam_core(
   if(rst) begin
    wr_ptr<=0;frame_ptr<=0;valid_samples<=0;channel<=0;state<=ST_IDLE;
    delay_int_latched<=0;frac_latched<=0;gain_latched<=0;
-   enabled_latched<=0;read0_valid<=0;read1_valid<=0;
+   enabled_latched<=0;polarity_latched<=0;read0_valid<=0;read1_valid<=0;
    sample0<=0;sample1<=0;acc<=0;final_acc<=0;normalized<=0;scaled<=0;
    enabled_count<=0;final_count<=0;beam<=0;beam_valid<=0;
    for(i=0;i<32;i=i+1) begin
@@ -159,6 +163,7 @@ module beam_core(
      frac_latched<=delays[channel][15:0];
      gain_latched<=gains[channel][15:0];
      enabled_latched<=enable_mask[channel];
+     polarity_latched<=polarity_mask[channel];
      read0_valid<=({1'b0,delays[channel][23:16]}<={1'b0,valid_samples});
      state<=ST_READ0_CAP;
     end

@@ -7,13 +7,13 @@ module beamformer_top (
  output wire led_run_n, led_regs_n
 );
  wire rst = ~rst_n;
- wire [31:0] pcm_valid_unused;
  wire sample_tick;
  wire signed [23:0] pcm [0:31];
  wire [31:0] enable_mask;
  wire [31:0] delays [0:31];
  wire [31:0] gains [0:31];
  wire [31:0] ctrl, mode, out_gain;
+ wire [31:0] test_control, test_amplitude, polarity_mask;
  wire commit;
  wire reg_access;
  wire signed [23:0] beam;
@@ -21,12 +21,16 @@ module beamformer_top (
  wire [31:0] frame_count;
  wire [31:0] levels [0:31];
  wire [31:0] error_flags = 32'd0;
+ wire signed [23:0] core_pcm [0:31];
  pdm_frontend front(.clk(audio_clk_12m288),.rst(rst),.pdm_data(pdm_data),.pdm_clk(pdm_clk),.sample_tick(sample_tick),.pcm(pcm));
  spi_regs regs(.clk(audio_clk_12m288),.rst(rst),.sck(spi_sck),.cs_n(spi_cs_n),.mosi(spi_mosi),.miso(spi_miso),
  .enable_mask(enable_mask),.delays(delays),.gains(gains),.ctrl(ctrl),.mode(mode),.out_gain(out_gain),.commit(commit),
+ .test_control(test_control),.test_amplitude(test_amplitude),.polarity_mask(polarity_mask),
  .access(reg_access),.frame_count(frame_count),.levels(levels),.error_flags(error_flags));
- beam_core core(.clk(audio_clk_12m288),.rst(rst),.sample_tick(sample_tick),.pcm(pcm),.enable_mask(enable_mask),
- .delays(delays),.gains(gains),.ctrl(ctrl),.out_gain(out_gain),.beam(beam),.beam_valid(beam_valid),.levels(levels));
+ test_source testgen(.clk(audio_clk_12m288),.rst(rst),.sample_tick(sample_tick),
+ .control(test_control),.amplitude(test_amplitude),.pcm_in(pcm),.pcm_out(core_pcm));
+ beam_core core(.clk(audio_clk_12m288),.rst(rst),.sample_tick(sample_tick),.pcm(core_pcm),.enable_mask(enable_mask),
+ .delays(delays),.gains(gains),.polarity_mask(polarity_mask),.ctrl(ctrl),.out_gain(out_gain),.beam(beam),.beam_valid(beam_valid),.levels(levels));
  audio_tx tx(.clk(audio_clk_12m288),.rst(rst),.mode_tdm(mode[1]),.sample(beam),.sample_valid(beam_valid),
  .bclk(audio_bclk),.fs(audio_fs),.sd(audio_sd),.frame_count(frame_count));
  // D5/D6 are wired active-low on the QMTECH board.

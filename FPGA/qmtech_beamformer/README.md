@@ -1,6 +1,12 @@
 # QMTECH Artix-7 32-PDM circular beamformer — RTL prototype
 
-Contains synthesizable-intent SystemVerilog modules, SPI C host driver, Vivado project TCL, XDC template and two behavioral testbenches. See `docs/INTEGRATION.md` for hardware, safety, verification and functionality limitations.
+Contains synthesizable-intent SystemVerilog modules, SPI C host driver, beam
+heatmap/calibration tools, Vivado project TCL, XDC template, and behavioral
+testbenches. The root [`../../README.md`](../../README.md#operating-the-beamformer)
+documents SPI mode/timing, the register map, steering equations, synthetic test
+mode, heatmap use, and the microphone calibration procedure. See
+`docs/INTEGRATION.md` for hardware, safety, verification, and functionality
+limitations.
 
 ## Quick start
 1. Verify that the fitted device is the XC7A100T FGG676 and that the PCB is the documented QMTECH V01 revision.
@@ -11,13 +17,16 @@ Contains synthesizable-intent SystemVerilog modules, SPI C host driver, Vivado p
 6. Run `./scripts/run_vivado.sh -mode batch -source scripts/synthesize.tcl`. Reports are written to `vivado_project/synth_utilization.rpt` and `vivado_project/synth_timing_summary.rpt`.
 7. Run `./scripts/run_vivado.sh -mode batch -source scripts/build_bitstream.tcl` and review the implementation timing and DRC reports before programming.
 8. Run `./scripts/run_vivado.sh -mode batch -source scripts/program_device.tcl` to load the bitstream into volatile FPGA SRAM over JTAG. This does not program the configuration flash.
-9. Run behavioral simulations and review warnings, inferred memories, utilization and timing before programming.
-10. Connect the SPI host driver using a callback that asserts CS for each 7-byte transaction.
+9. To create the persistent boot image, run `./scripts/run_vivado.sh -mode batch -source scripts/generate_cfgmem.tcl`.
+10. Program and verify the onboard Micron N25Q064A with `./scripts/run_vivado.sh -mode batch -source scripts/program_cfgmem.tcl`. This erases the existing power-on image.
+11. Run behavioral simulations and review warnings, inferred memories, utilization and timing before programming.
+12. Connect the SPI host driver using a callback that asserts CS for each 7-byte transaction.
 
 ### Files
 - `rtl/`: FPGA logic
-- `host/`: C API, circular steering delay computation
-- `sim/`: behavioral testbenches
+- `host/`: C API with arbitrary XYZ geometry and calibration, plus the
+  far-field CSV/SVG heatmap generator
+- `sim/`: SPI, beam-core, and synthetic-source behavioral testbenches
 - `scripts/`: Vivado project generation, synthesis and launch helpers
 - `constraints/`: clock and board pin template
 

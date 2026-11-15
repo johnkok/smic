@@ -68,6 +68,7 @@ tool state are ignored and should not be committed.
 |---|---|
 | FPGA synthesis/implementation | Completes for `xc7a100tfgg676-1` with Vivado 2026.1 |
 | FPGA SRAM programming | Tested through Vivado Hardware Manager/JTAG |
+| FPGA configuration flash | N25Q064A SPIx4 erase/program/verify and flash boot tested; DONE=1 |
 | Behavioral simulations | SPI and beam-core tests pass with Icarus Verilog 12 |
 | Microphone hole geometry | Verified against the IM72D128V01 datasheet and NPTH export |
 | KiCad PCB DRC | Zero violations and zero unconnected items for the saved, but electrically reversed, net assignment |
@@ -110,7 +111,6 @@ Replication still requires engineering work outside the checked-in artifacts:
   is an adjustable mechanical prototype, not a production release.
 - Channel calibration data and a host steering implementation based on the
   actual Fermat coordinates.
-- Nonvolatile FPGA flash-programming automation.
 - Production tests for supply current, J1 continuity, PDM channels, frequency
   response, noise, sensitivity matching, and beam pattern.
 - A project license. No license file is currently present, so obtain permission
@@ -340,17 +340,39 @@ cd FPGA/qmtech_beamformer
 
 The script enumerates the chain, requires exactly one XC7A100T, programs the
 bitstream, and reports DONE when that property is available. Programming is
-volatile and is lost when power is removed. Configuration-flash programming is
-not implemented in this repository.
+volatile and is lost when power is removed.
+
+### Program nonvolatile configuration flash
+
+The QMTECH V01 board uses a 3.3 V Micron N25Q064A, 64 Mbit configuration flash.
+The checked-in constraints generate a Master-SPIx4 bitstream matching the
+board's `M[2:0]=100` boot straps. To replace the board's power-on image:
+
+```bash
+cd FPGA/qmtech_beamformer
+./scripts/run_vivado.sh -mode batch -source scripts/generate_cfgmem.tcl
+./scripts/run_vivado.sh -mode batch -source scripts/program_cfgmem.tcl
+```
+
+The programming script requires exactly one XC7A100T, loads Vivado's temporary
+SPI bridge, erases the existing flash image, programs the MCS file, performs a
+read-back verification, and boots the FPGA from flash. On 2026-11-15 the board
+reported JEDEC ID `20 BA 17`, program/verify completed successfully, and the
+flash-booted FPGA reported `DONE=1`.
 
 ## Operating the beamformer
 
 ### SPI protocol
 
-- Mode 0.
-- Keep SCK below 2 MHz for the current asynchronous capture implementation.
-- Deassert CS between transactions.
-- Each transaction is exactly seven bytes:
+- Use **SPI mode 0**: `CPOL=0`, `CPHA=0`. SCK idles low; the FPGA samples
+  MOSI on rising edges and the host samples MISO on rising edges. Change data
+  on falling edges.
+- Use MSB first and keep SCK at or below 2 MHz. This conservative limit is for
+  the current SCK-to-12.288-MHz toggle synchronizer, not the FPGA I/O limit.
+- `CS_N` is active low. Hold it low for exactly 56 clocks and return it high
+  between commands. MISO is high-impedance while `CS_N` is high, so the bus may
+  be shared.
+- Every command is exactly seven bytes:
 
 ```text
 byte 0       byte 1..2             byte 3..6
@@ -359,7 +381,17 @@ opcode       16-bit address        32-bit data
 0x03 read    big-endian            returned big-endian
 ```
 
-The host transfer callback must hold CS active for all seven bytes.
+For a write, opcode `0x02` is followed by the address and value. For a read,
+send opcode `0x03`, the address, and four dummy bytes; the returned value is in
+receive bytes 3 through 6. A command is accepted only after all 56 bits arrive.
+The host transfer callback must keep `CS_N` active across the whole seven-byte
+exchange and must not split it into separate opcode/address/data transfers.
+
+Register writes cross asynchronously into the audio clock domain and normally
+become visible within three 12.288 MHz clocks. Delay, gain, and polarity writes
+go to shadow registers; writing `COMMIT.bit0=1` copies the complete set into the
+beamformer together. Readback of those fields reports the shadow value. D6 is
+held on for about 100 ms after every valid read or write transaction.
 
 ### Important registers
 
@@ -374,12 +406,40 @@ The host transfer callback must hold CS active for all seven bytes.
 | `0x0018` | ELEVATION | Reserved; host currently calculates delays |
 | `0x001C` | OUTPUT_GAIN | Q1.15 |
 | `0x0020` | ENABLE_MASK | One bit per microphone |
-| `0x0024` | COMMIT | Write bit 0 to activate shadow delays/gains |
+| `0x0024` | COMMIT | Write bit 0 to activate shadow delays, gains, and polarity |
 | `0x0028` | FRAME_COUNT | Output frame counter |
 | `0x002C` | ERRORS | Placeholder |
+| `0x0030` | TEST_CONTROL | Test-source enable, routing, and pattern |
+| `0x0034` | TEST_AMPLITUDE | Signed 24-bit synthetic PCM amplitude |
+| `0x0038` | POLARITY_MASK | One invert bit per channel; shadowed by `COMMIT` |
 | `0x0100 + 4*i` | DELAY[i] | Q16.16 samples, integer part limited to 254 |
 | `0x0200 + 4*i` | GAIN[i] | Q1.15 microphone gain |
 | `0x0300 + 4*i` | LEVEL[i] | Per-channel level |
+
+`MODE.bit1` selects the two-slot TDM-like transmitter; zero selects I2S-like
+framing. All other `MODE` bits are reserved and should be written as zero.
+`OUTPUT_GAIN` and `GAIN[i]` use unsigned Q1.15 (`0x8000` = 1.0). Values up to
+`0xFFFF` are valid, although headroom must be allowed to avoid output clipping.
+Only `TEST_AMPLITUDE[23:0]` is used and it is interpreted as signed two's
+complement; bits 31:24 are ignored and should be written as zero.
+`LEVEL[i]` is the absolute magnitude of the most recently accepted PCM sample,
+not RMS or peak-hold metering.
+
+`TEST_CONTROL` is defined as follows:
+
+| Bits | Meaning |
+|---:|---|
+| 0 | Enable synthetic PCM and bypass the PDM samples |
+| 1 | Send the test signal to all channels; if zero, use the selected channel |
+| 6:2 | Selected channel, 0 through 31 |
+| 9:8 | Pattern: 0 = 1 kHz square, 1 = 1 kHz impulse train, 2 = DC, 3 = alternating samples (24 kHz) |
+| Other | Reserved, write zero |
+
+When test mode is enabled, unselected channels are forced to zero. The source
+enters after PDM decimation but before history, fractional delay, calibration,
+summation, and audio transmission. It therefore tests the beamformer and output
+path, but does **not** test microphones, PDM wiring, CIC decimation, or acoustic
+channel order.
 
 ### C host API
 
@@ -392,16 +452,146 @@ bf_device dev = {
 };
 
 bf_init(&dev, array_radius_m);
+bf_set_geometry(&dev, measured_positions);
+bf_set_calibration(&dev, measured_calibration);
 bf_set_direction(&dev, azimuth_deg, elevation_deg);
 bf_start(&dev);
 ```
 
-The current `bf_set_direction()` helper assumes 32 microphones uniformly spaced
-on a perfect circle. The PCB uses a Fermat spiral, so this helper does not model
-the actual hardware. Before acoustic use, replace its generated coordinates
-with the positions in `Board/smic/docs/mic_acoustic_holes.csv`, convert KiCad Y
-to the chosen acoustic coordinate convention, and calibrate per-channel delay,
-gain, polarity, and channel order.
+`bf_init()` supplies a circular fallback geometry only. The PCB is a Fermat
+spiral, so production software must build a 32-element `bf_mic_position` array
+from `Board/smic/docs/mic_acoustic_holes.csv`, convert millimetres to metres,
+subtract the array centre, choose whether acoustic +Y is KiCad +Y or -Y, and
+call `bf_set_geometry()`. The `MKn` number is treated as channel `n-1` by the
+heatmap tool, but that assumption must be verified against the physical PDM
+pair/edge channel order before use.
+
+The host library stores per-channel gain, delay correction, and polarity in
+`bf_mic_calibration`. `bf_set_direction()` combines those values with geometric
+steering, writes all shadow registers, writes the polarity mask, then commits
+the set. These values are volatile: reload geometry and calibration after every
+FPGA reset or power cycle.
+
+### Steering mathematics
+
+Angles use degrees. Azimuth is measured in the array XY plane from +X toward
++Y; elevation is measured from the XY plane toward +Z. The look-direction unit
+vector is
+
+```text
+u = [cos(el) cos(az), cos(el) sin(az), sin(el)].
+```
+
+For microphone position `r_i=[x_i,y_i,z_i]`, sample rate `Fs=48000`, and speed
+of sound `c` (343 m/s by default), the host first calculates
+
+```text
+p_i       = dot(r_i, u)
+raw_i     = -Fs * p_i / c + calibration_delay_i
+d_i       = raw_i - min(raw_0 ... raw_31)
+DELAY[i]  = round(65536 * d_i)
+GAIN[i]   = round(32768 * calibration_gain_i)
+```
+
+Subtracting the common minimum makes every hardware delay non-negative without
+changing relative phase. `d_i` must be at most 254 samples. At 48 kHz that is
+5.29 ms, much longer than the geometric delay across this PCB. Temperature
+changes `c`; for tighter steering, use approximately
+`c = 331.3 + 0.606*T_C` m/s or a measured local value.
+
+Inside `beam_core.sv`, the integer and fractional portions select two adjacent
+history samples. With `f=DELAY[i][15:0]/65536`, interpolation is
+
+```text
+x_i' = (1-f) * history_i[n-floor(d_i)]
+       + f * history_i[n-floor(d_i)-1]
+y    = OUTPUT_GAIN * (sum(enabled_i * polarity_i * GAIN[i] * x_i') / N)
+```
+
+`N` is the number of enabled microphones and division uses a Q0.24 reciprocal
+lookup table. The final value is saturated to signed 24-bit PCM. Linear
+interpolation is inexpensive but its high-frequency magnitude/phase error is
+larger than a Farrow or windowed-sinc fractional-delay filter.
+
+### Beam heatmap
+
+The FPGA produces one audio beam; it does not render or scan a heatmap. The
+far-field prediction is implemented on the host in
+[`beam_heatmap.py`](FPGA/qmtech_beamformer/host/beam_heatmap.py). It uses the
+actual acoustic-hole coordinates, the same steering-delay equation, optional
+calibration, and the narrow-band array factor at a chosen frequency. Run:
+
+```bash
+python3 FPGA/qmtech_beamformer/host/beam_heatmap.py \
+  --geometry Board/smic/docs/mic_acoustic_holes.csv \
+  --calibration FPGA/qmtech_beamformer/host/calibration.example.csv \
+  --frequency 3000 --steer-az 45 --steer-el 0 \
+  --output /tmp/smic_3khz
+```
+
+This writes `/tmp/smic_3khz.csv` in dB and a directly viewable
+`/tmp/smic_3khz.svg`. By default KiCad Y is negated so +Y points upward in a
+top-view Cartesian plot; pass `--keep-kicad-y` to retain KiCad's Y direction.
+The result is a theoretical free-field map, not measured acoustic performance:
+it omits enclosure diffraction, microphone directivity, tolerances, reflections,
+and the CIC response. A broadband beam must be assessed at several frequencies.
+
+### Digital test mode
+
+Use test mode before attaching the microphone PCB to check SPI, shadow commits,
+delay/gain/polarity processing, DAI, and the receiver:
+
+```c
+/* 0x040000 is about -30 dBFS in signed 24-bit PCM. */
+bf_set_test_mode(&dev, BF_TEST_SQUARE_1KHZ, 0, 1, 0x040000);
+bf_start(&dev);
+/* Inspect audio output, then always return to real PDM input. */
+bf_disable_test_mode(&dev);
+```
+
+With `all_channels=1` and zero delays, output amplitude should equal the test
+amplitude because the core normalizes by enabled-channel count. Select a single
+channel and set `ENABLE_MASK` to the same one bit to test that channel's delay,
+gain, and polarity without the other 31 zeros reducing the result. The impulse
+pattern is useful for confirming integer/fractional delay. DC is intended for
+short datapath checks and should not be sent to speakers at high amplitude.
+
+### Microphone calibration guide
+
+Calibration support is manual/offline; the design does not yet estimate
+coefficients automatically. A practical procedure is:
+
+1. Verify channel order first with a close sound source at each microphone.
+   Record the FPGA channel corresponding to every `MKn`; do not infer it only
+   from connector numbering or shared PDM data pairs.
+2. Place the completed array and a reference loudspeaker in a low-reflection
+   setup, aimed normal to the PCB and far enough away that path differences are
+   small. Keep source, gain, and geometry fixed.
+3. Capture every decimated microphone channel using an FPGA diagnostic build or
+   external logic. The current mono audio output and instantaneous `LEVEL[i]`
+   registers are not sufficient for accurate phase calibration.
+4. Play a band-limited sweep or maximum-length sequence. Estimate relative lag
+   by cross-correlation around the expected geometric lag. Choose a reference
+   channel and store each residual in `delay_samples`; fractional values are
+   supported.
+5. Compare RMS amplitudes over the same steady segment. Set
+   `gain_linear_i = target_rms / measured_rms_i`, then reduce all gains by a
+   common factor if any would reach 2.0. Use `invert=1` only when correlation
+   shows a true 180-degree polarity reversal.
+6. Save 32 rows using the format in
+   [`calibration.example.csv`](FPGA/qmtech_beamformer/host/calibration.example.csv),
+   load them into `bf_mic_calibration`, call `bf_set_calibration()`, and then
+   call `bf_set_direction()` to write and commit the combined coefficients.
+7. Repeat the measurement from several directions and across the operating
+   band. A delay that changes strongly with frequency indicates acoustic or
+   filter mismatch that a single delay/gain coefficient cannot correct.
+
+Calibration delay is a correction applied by the FPGA. If a channel is measured
+late by `q` samples, store approximately `-q` for that channel; removal of the
+common minimum then delays the other channels by the equivalent amount. If it
+is early by `q`, store approximately `+q`. Confirm this sign convention with an
+impulse or correlation before saving coefficients. Negative values are accepted
+as long as the final relative delays fit the 254-sample history limit.
 
 ### Audio output
 

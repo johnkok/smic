@@ -5,11 +5,13 @@ module tb_beamformer;
  reg signed [23:0] pcm[0:31];
  reg [31:0] delay[0:31],gain[0:31];
  reg [31:0] mask=32'hffffffff,ctrl=1,outgain=32768;
+ reg [31:0] polarity=0;
  wire signed [23:0] beam;
  wire valid;
  wire [31:0] levels[0:31];
  beam_core dut(.clk(clk),.rst(rst),.sample_tick(tick),.pcm(pcm),.enable_mask(mask),
- .delays(delay),.gains(gain),.ctrl(ctrl),.out_gain(outgain),.beam(beam),.beam_valid(valid),.levels(levels));
+ .delays(delay),.gains(gain),.polarity_mask(polarity),.ctrl(ctrl),.out_gain(outgain),
+ .beam(beam),.beam_valid(valid),.levels(levels));
  integer i,k,wait_cycles;
  task automatic run_frame;
  begin
@@ -37,6 +39,14 @@ module tb_beamformer;
   run_frame();
   if(beam<24'sd179990 || beam>24'sd180010)
    $fatal(1,"Three-channel normalization failed: %0d",beam);
+
+  // Per-channel polarity correction is applied before accumulation.
+  mask=32'h00000003;polarity=32'h00000002;
+  pcm[0]=24'sd200000;pcm[1]=24'sd100000;
+  run_frame();
+  if(beam<24'sd49990 || beam>24'sd50010)
+   $fatal(1,"Polarity correction failed: %0d",beam);
+  polarity=0;
 
   // One-channel, one-sample delay: the second frame must reproduce the first.
   @(negedge clk);rst=1;@(negedge clk);rst=0;

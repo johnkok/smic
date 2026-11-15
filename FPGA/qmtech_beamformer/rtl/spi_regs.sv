@@ -8,6 +8,8 @@ module spi_regs(
  output wire [31:0] delays [0:31],
  output wire [31:0] gains [0:31],
  output reg [31:0] ctrl, mode, out_gain,
+ output reg [31:0] test_control, test_amplitude,
+ output wire [31:0] polarity_mask,
  output reg commit,
  output reg access,
  input wire [31:0] frame_count,
@@ -16,6 +18,8 @@ module spi_regs(
 );
  reg [31:0] delay_shadow[0:31],gain_shadow[0:31];
  reg [31:0] delay_active[0:31],gain_active[0:31];
+ reg [31:0] polarity_shadow,polarity_active;
+ assign polarity_mask=polarity_active;
  genvar g;
  generate for(g=0;g<32;g=g+1) begin: connect
  assign delays[g]=delay_active[g];assign gains[g]=gain_active[g];
@@ -24,7 +28,6 @@ module spi_regs(
  reg [7:0] opcode;
  reg [15:0] address;
  reg [31:0] payload;
- reg [31:0] rdword;
  reg [31:0] rdshift;
  reg [15:0] wraddr_spi;
  reg [31:0] wrdata_spi;
@@ -49,10 +52,13 @@ module spi_regs(
   16'h0024:read_reg=32'd0;
   16'h0028:read_reg=frame_count;
   16'h002c:read_reg=error_flags;
+  16'h0030:read_reg=test_control;
+  16'h0034:read_reg=test_amplitude;
+  16'h0038:read_reg=polarity_shadow;
   default:begin
-   if(addr>=16'h0100 && addr<=16'h017c && addr[1:0]==0) read_reg=delay_shadow[(addr-16'h0100)>>2];
-   else if(addr>=16'h0200 && addr<=16'h027c && addr[1:0]==0) read_reg=gain_shadow[(addr-16'h0200)>>2];
-   else if(addr>=16'h0300 && addr<=16'h037c && addr[1:0]==0) read_reg=levels[(addr-16'h0300)>>2];
+   if(addr>=16'h0100 && addr<=16'h017c && addr[1:0]==0) read_reg=delay_shadow[addr[6:2]];
+   else if(addr>=16'h0200 && addr<=16'h027c && addr[1:0]==0) read_reg=gain_shadow[addr[6:2]];
+   else if(addr>=16'h0300 && addr<=16'h037c && addr[1:0]==0) read_reg=levels[addr[6:2]];
    else read_reg=32'd0;
   end
  endcase
@@ -83,11 +89,14 @@ module spi_regs(
    if(bitpos<56) bitpos<=bitpos+1'b1;
   end
  end
- assign miso = (!cs_n && opcode==8'h03 && bitpos>=24 && bitpos<56) ? rdshift[31] : 1'b0;
+ assign miso = cs_n ? 1'bz :
+  ((opcode==8'h03 && bitpos>=24 && bitpos<56) ? rdshift[31] : 1'b0);
  always @(posedge clk) begin
   if(rst) begin
    wr_sync<=0;access_sync<=0;access<=0;
    enable_mask<=32'hffffffff;ctrl<=0;mode<=0;out_gain<=32'h00008000;
+   test_control<=0;test_amplitude<=32'h00040000;
+   polarity_shadow<=0;polarity_active<=0;
    commit<=0;status<=32'd1;
    for(i=0;i<32;i=i+1) begin
     delay_shadow[i]<=0;delay_active[i]<=0;
@@ -105,16 +114,22 @@ module spi_regs(
      16'h001c:out_gain<=wrdata_spi;
      16'h0020:enable_mask<=wrdata_spi;
      16'h0024:if(wrdata_spi[0]) commit<=1;
+     16'h0030:test_control<=wrdata_spi;
+     16'h0034:test_amplitude<=wrdata_spi;
+     16'h0038:polarity_shadow<=wrdata_spi;
      default:begin
       if(wraddr_spi>=16'h0100 && wraddr_spi<=16'h017c && wraddr_spi[1:0]==0)
-       delay_shadow[(wraddr_spi-16'h0100)>>2]<=wrdata_spi;
+       delay_shadow[wraddr_spi[6:2]]<=wrdata_spi;
       if(wraddr_spi>=16'h0200 && wraddr_spi<=16'h027c && wraddr_spi[1:0]==0)
-       gain_shadow[(wraddr_spi-16'h0200)>>2]<=wrdata_spi;
+       gain_shadow[wraddr_spi[6:2]]<=wrdata_spi;
      end
     endcase
    end
-   if(commit) for(i=0;i<32;i=i+1) begin
-    delay_active[i]<=delay_shadow[i];gain_active[i]<=gain_shadow[i];
+   if(commit) begin
+    polarity_active<=polarity_shadow;
+    for(i=0;i<32;i=i+1) begin
+     delay_active[i]<=delay_shadow[i];gain_active[i]<=gain_shadow[i];
+    end
    end
   end
  end

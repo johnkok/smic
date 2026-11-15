@@ -49,3 +49,9 @@ set_clock_groups -asynchronous -group [get_clocks audio_ref] -group [get_clocks 
 
 # Board/adapter input and output delays must be added once the microphone,
 # level-translator and host timing specifications are fixed.
+# QMTECH V01 configuration bank and N25Q064A boot-flash settings.
+# The board straps M[2:0]=100 for Master SPI and powers bank 0 at 3.3 V.
+set_property CFGBVS VCCO [current_design]
+set_property CONFIG_VOLTAGE 3.3 [current_design]
+set_property CONFIG_MODE SPIx4 [current_design]
+set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 4 [current_design]
