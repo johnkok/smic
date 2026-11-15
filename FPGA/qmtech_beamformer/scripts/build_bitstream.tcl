@@ -5,8 +5,11 @@ if {![file exists $project_file]} {
 }
 
 open_project $project_file
+reset_run synth_1
 reset_run impl_1
-launch_runs impl_1 -to_step write_bitstream -jobs 4
+# A single local run avoids Vivado's VRS scheduler becoming orphaned when a
+# synthesis worker exits before publishing its completion marker.
+launch_runs impl_1 -to_step write_bitstream -jobs 1
 wait_on_run impl_1
 
 set run_status [get_property STATUS [get_runs impl_1]]

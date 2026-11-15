@@ -28,3 +28,4 @@ vivado.jou
 vivado.log
 *.backup.jou
 *.backup.log
+vivado_pid*.str

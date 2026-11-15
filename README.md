@@ -57,7 +57,7 @@ from 16 FPGA inputs.
 | `FPGA/qmtech_beamformer/host/` | C SPI API and steering helper |
 | `FPGA/qmtech_beamformer/docs/` | Detailed FPGA integration notes |
 | `Doc/` | QMTECH manuals, microphone datasheet, and array-placement drawing |
-| `3D/` | FreeCAD mechanical model |
+| `3D/` | FreeCAD enclosure model and SMIC Experiment workbench |
 
 Generated Vivado projects, compatibility libraries, logs, bitstreams, and local
 tool state are ignored and should not be committed.
@@ -76,6 +76,28 @@ tool state are ignored and should not be committed.
 | Audio quality | Prototype only; CIC compensation, anti-alias filtering, and protocol validation remain |
 | DDR3 | Not instantiated |
 
+## Experimental enclosure
+
+[`3D/main_body.FCStd`](3D/main_body.FCStd) contains a derived
+`SMICExperimentalBody` with a 6 mm-pitch internal thread spanning Z=0.8–49.2
+mm. The original lower ledge is opened to the 128.4 mm threaded bore so a
+bottom cap and separate threaded board-carrier rings can enter from either end.
+The exterior uses 24 rounded vertical ribs as an initial wave texture.
+
+The installed **SMIC Experiment** FreeCAD workbench makes the thread pitch,
+depth, bore, axial range, bottom opening, and exterior wave count/radius/range
+adjustable. Its checked-in source and installation instructions are in
+[`3D/FreeCAD/Mod/SMIC_Experiment/`](3D/FreeCAD/Mod/SMIC_Experiment/README.md).
+The generated body is a separate feature, leaving the original Part Design
+body available for further edits.
+
+[`3D/internal_ring_10mm.FCStd`](3D/internal_ring_10mm.FCStd) is a compatible
+10 mm-high carrier ring with a 124 mm opening and 6 mm-pitch male thread. Its
+128.0/132.0 mm minor/major diameters provide 0.2 mm radial clearance from the
+body on each side, and each thread flank has an additional 0.2 mm axial
+printing clearance. The aligned FreeCAD solids have zero interference. The
+reproducible generator is [`3D/create_internal_ring.py`](3D/create_internal_ring.py).
+
 ### Not yet supplied
 
 Replication still requires engineering work outside the checked-in artifacts:
@@ -83,8 +105,9 @@ Replication still requires engineering work outside the checked-in artifacts:
 - A released purchasing BOM with approved manufacturer part numbers.
 - Corrected microphone DATA/CLOCK routing and a new manufacturing package.
 - A keyed J1-to-U4 adapter PCB or a fully documented production cable drawing.
-- An enclosure, acoustic baffle, wind protection, mounting hardware, and a
-  defined microphone-to-surface port geometry.
+- A released enclosure, acoustic baffle, wind protection, mounting hardware,
+  and a defined microphone-to-surface port geometry. The checked-in enclosure
+  is an adjustable mechanical prototype, not a production release.
 - Channel calibration data and a host steering implementation based on the
   actual Fermat coordinates.
 - Nonvolatile FPGA flash-programming automation.
