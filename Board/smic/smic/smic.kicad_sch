@@ -6930,7 +6930,7 @@
 		(uuid "fecb156c-2954-4640-8cb6-79d48d72cbfc")
 	)
 	(label "DATA10"
-		(at 167.64 58.42 180)
+		(at 168.91 60.96 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -6940,7 +6940,7 @@
 		(uuid "04d7475c-c06e-4cf4-a360-27f7073e59fd")
 	)
 	(label "CLK4"
-		(at 167.64 31.75 180)
+		(at 168.91 29.21 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -6960,7 +6960,7 @@
 		(uuid "068de980-56c5-468f-8d27-c2e870145d41")
 	)
 	(label "DATA5"
-		(at 226.06 87.63 180)
+		(at 227.33 90.17 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -6970,7 +6970,7 @@
 		(uuid "0846c354-24e4-4450-8bcb-53c6188b7802")
 	)
 	(label "DATA13"
-		(at 49.53 58.42 180)
+		(at 50.8 60.96 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -6980,7 +6980,7 @@
 		(uuid "10c70d5c-0830-46f5-a65e-d05998584267")
 	)
 	(label "CLK2"
-		(at 167.64 119.38 180)
+		(at 168.91 116.84 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -7010,7 +7010,7 @@
 		(uuid "1a3e2fd5-5d1a-4cb8-a9f6-bb7c55c123a3")
 	)
 	(label "DATA4"
-		(at 109.22 87.63 180)
+		(at 110.49 90.17 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -7020,7 +7020,7 @@
 		(uuid "1b1fc7e3-bc1d-4546-bb9d-0c3c90944a25")
 	)
 	(label "DATA9"
-		(at 226.06 58.42 180)
+		(at 226.06 60.96 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -7030,7 +7030,7 @@
 		(uuid "1da6fa4c-1f2a-4df9-96b4-e15c40df0031")
 	)
 	(label "CLK7"
-		(at 49.53 31.75 180)
+		(at 50.8 29.21 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -7040,7 +7040,7 @@
 		(uuid "1dd9daee-378d-4ac6-bcb5-5936d1ec216b")
 	)
 	(label "DATA3"
-		(at 167.64 87.63 180)
+		(at 167.64 90.17 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -7050,7 +7050,7 @@
 		(uuid "2a63129f-3ba3-40d6-b635-ae826ce49d33")
 	)
 	(label "DATA16"
-		(at 109.22 116.84 180)
+		(at 110.49 119.38 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -7060,7 +7060,7 @@
 		(uuid "2c32f2d9-6509-466e-9f42-b1ac9ef480bc")
 	)
 	(label "CLK6"
-		(at 226.06 60.96 180)
+		(at 226.06 58.42 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -7160,7 +7160,7 @@
 		(uuid "717b643b-b66a-4be9-837a-1f2423f5f327")
 	)
 	(label "DATA2"
-		(at 226.06 116.84 180)
+		(at 227.33 119.38 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -7180,7 +7180,7 @@
 		(uuid "7b313176-e1c8-4d75-9ab8-9b8b3621a6da")
 	)
 	(label "DATA1"
-		(at 167.64 116.84 180)
+		(at 168.91 119.38 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -7190,7 +7190,7 @@
 		(uuid "7c099861-7834-4c9a-9bf2-1a59ce6877c8")
 	)
 	(label "CLK9"
-		(at 49.53 90.17 180)
+		(at 50.8 87.63 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -7210,7 +7210,7 @@
 		(uuid "80f9a671-fa39-4bd2-ad59-5004138ae3ed")
 	)
 	(label "DATA11"
-		(at 49.53 29.21 180)
+		(at 50.8 31.75 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -7220,7 +7220,7 @@
 		(uuid "81df8cdd-e365-4a72-8be7-b157c486a730")
 	)
 	(label "CLK2"
-		(at 226.06 119.38 180)
+		(at 227.33 116.84 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -7230,7 +7230,7 @@
 		(uuid "81f8664c-61c2-42c8-826e-756675cc7f47")
 	)
 	(label "CLK8"
-		(at 49.53 60.96 180)
+		(at 50.8 58.42 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -7240,7 +7240,7 @@
 		(uuid "883a1727-c301-40fd-85ac-93cbd9ec2974")
 	)
 	(label "CLK3"
-		(at 167.64 90.17 180)
+		(at 167.64 87.63 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -7290,7 +7290,7 @@
 		(uuid "968527cc-0884-464b-908b-0d531a404237")
 	)
 	(label "DATA14"
-		(at 49.53 87.63 180)
+		(at 50.8 90.17 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -7300,7 +7300,7 @@
 		(uuid "98ebc41c-1df9-417f-9966-6bc59fff8665")
 	)
 	(label "CLK1"
-		(at 109.22 119.38 180)
+		(at 110.49 116.84 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -7310,7 +7310,7 @@
 		(uuid "9c3d7fa2-197e-45c8-8b77-2c66556d047e")
 	)
 	(label "CLK5"
-		(at 226.06 90.17 180)
+		(at 227.33 87.63 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -7330,7 +7330,7 @@
 		(uuid "a871b597-bbbd-4d05-859d-a16c6dd12678")
 	)
 	(label "DATA7"
-		(at 226.06 29.21 180)
+		(at 227.33 31.75 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -7340,7 +7340,7 @@
 		(uuid "a9362688-0d6f-4cd6-b11f-c0d0e70b04a6")
 	)
 	(label "CLK7"
-		(at 167.64 60.96 180)
+		(at 167.64 58.42 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -7350,7 +7350,7 @@
 		(uuid "b4600d2c-94af-4e77-b80f-b93baa97a178")
 	)
 	(label "DATA6"
-		(at 167.64 29.21 180)
+		(at 168.91 31.75 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -7370,7 +7370,7 @@
 		(uuid "ca47456c-f5f4-48ec-8add-206e64d5b5e5")
 	)
 	(label "DATA12"
-		(at 109.22 58.42 180)
+		(at 110.49 60.96 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -7380,7 +7380,7 @@
 		(uuid "cfb35252-4b41-4c4b-bf73-3dd679c764fa")
 	)
 	(label "CLK4"
-		(at 226.06 31.75 180)
+		(at 227.33 29.21 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -7400,7 +7400,7 @@
 		(uuid "d4719dbb-2c89-49ab-9282-3443351abed9")
 	)
 	(label "CLK6"
-		(at 109.22 31.75 180)
+		(at 109.22 29.21 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -7420,7 +7420,7 @@
 		(uuid "dd3b7693-1cba-4f18-9474-7b31e4bc78e1")
 	)
 	(label "DATA15"
-		(at 49.53 116.84 180)
+		(at 50.8 119.38 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -7430,7 +7430,7 @@
 		(uuid "dd784a88-6bf7-4b35-a2f5-bb65a9f93c04")
 	)
 	(label "DATA8"
-		(at 109.22 29.21 180)
+		(at 109.22 31.75 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -7450,7 +7450,7 @@
 		(uuid "df554ca4-5b49-4730-b73b-d8ab9f48e2f6")
 	)
 	(label "CLK8"
-		(at 109.22 60.96 180)
+		(at 110.49 58.42 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -7470,7 +7470,7 @@
 		(uuid "ea9e3eff-1250-450d-819d-845cb7bfad4c")
 	)
 	(label "CLK1"
-		(at 49.53 119.38 180)
+		(at 50.8 116.84 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -7500,7 +7500,7 @@
 		(uuid "f3041c36-81a1-46cf-bbf5-19edd8b2adfc")
 	)
 	(label "CLK3"
-		(at 109.22 90.17 180)
+		(at 110.49 87.63 180)
 		(effects
 			(font
 				(size 1.27 1.27)

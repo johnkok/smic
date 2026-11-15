@@ -7,10 +7,11 @@ simulation testbenches, a C SPI control library, mechanical files, and the
 manufacturer reference documents used for the design.
 
 > [!CAUTION]
-> The microphone PCB is not fabrication-ready. Its present copper connects the
-> microphone DATA and CLOCK package pins backwards. Do not fabricate the
-> existing Gerbers or connect the microphone PCB to the FPGA until this has been
-> rerouted and the complete design has passed review. See
+> The microphone PCB is not fabrication-ready. Its DATA/CLOCK net assignments
+> are corrected, but the current PCB has no tracks or routing vias and its saved
+> zones/manufacturing files are stale. Do not fabricate the existing Gerbers or
+> connect the microphone PCB to the FPGA until routing and the complete design
+> review are finished. See
 > [SMIC PCB design review](Board/smic/docs/DESIGN_REVIEW.md).
 
 The FPGA prototype has been synthesized, implemented, and loaded into an
@@ -70,10 +71,11 @@ tool state are ignored and should not be committed.
 | FPGA SRAM programming | Tested through Vivado Hardware Manager/JTAG |
 | FPGA configuration flash | N25Q064A SPIx4 erase/program/verify and flash boot tested; DONE=1 |
 | Behavioral simulations | SPI and beam-core tests pass with Icarus Verilog 12 |
-| Microphone hole geometry | Verified against the IM72D128V01 datasheet and NPTH export |
-| KiCad PCB DRC | Zero violations and zero unconnected items for the saved, but electrically reversed, net assignment |
-| KiCad ERC | Intentionally exposes 32 output-to-output conflicts caused by the DATA/CLOCK reversal |
-| Microphone PCB fabrication | **Blocked** pending DATA/CLOCK rerouting and new manufacturing export |
+| Microphone hole geometry | All 32 NPTHs and back-silkscreen circles match the coordinate CSV |
+| Microphone schematic nets | Pin 1 DATA, pin 3 CLOCK, and complementary SELECT pairing verified by source inspection |
+| KiCad PCB routing | **Unrouted:** zero track segments and zero routing vias; three saved zone fills are stale |
+| KiCad ERC/DRC | Not rerun on the current KiCad 10 sources; required before release |
+| Microphone PCB fabrication | **Blocked** pending placement refinements, routing, ERC/DRC, and new manufacturing output |
 | Audio quality | Prototype only; CIC compensation, anti-alias filtering, and protocol validation remain |
 | DDR3 | Not instantiated |
 
@@ -104,7 +106,8 @@ reproducible generator is [`3D/create_internal_ring.py`](3D/create_internal_ring
 Replication still requires engineering work outside the checked-in artifacts:
 
 - A released purchasing BOM with approved manufacturer part numbers.
-- Corrected microphone DATA/CLOCK routing and a new manufacturing package.
+- Completed microphone PCB placement/routing, reviewed ERC/DRC reports, and a
+  new manufacturing package.
 - A keyed J1-to-U4 adapter PCB or a fully documented production cable drawing.
 - A released enclosure, acoustic baffle, wind protection, mounting hardware,
   and a defined microphone-to-surface port geometry. The checked-in enclosure
@@ -219,10 +222,11 @@ centered at `(114.205281, 98.532588)` mm. Microphones follow the Fermat layout
 shown in `Doc/DMIC_placement.jpeg`.
 
 The IM72D128V01 PG-LLGA-5-3 recommendation uses a 0.8 mm acoustic hole at a
-0.68 mm local-X offset from the package origin. The package origins are the
-nominal array points, so the true acoustic centers include this rotated offset.
-Use [mic_acoustic_holes.csv](Board/smic/docs/mic_acoustic_holes.csv), not the
-reference-designator origin, for calibration and beamforming geometry.
+0.68 mm local-X offset from the package origin. Each package origin is shifted
+to put its actual NPTH on the nominal Fermat point, and every DMIC body is
+horizontal or vertical. All 32 NPTHs and their back-silkscreen circles match
+[mic_acoustic_holes.csv](Board/smic/docs/mic_acoustic_holes.csv). Use those CSV
+coordinates, not reference-designator origins, for calibration and beamforming.
 
 ### 3.3 V population
 
@@ -239,28 +243,37 @@ These values are a design summary, not a released purchasing BOM. Confirm
 manufacturer part numbers, packages, ratings, availability, polarity, assembly
 rules, and the exact U1 variant before ordering.
 
-### Required PCB correction
+### Current PCB review and required work
 
-IM72D128V01 physical pin 1 is DATA and pin 3 is CLOCK. The current schematic
-and copper connect the clock-fanout branches to pin 1 and paired data routes to
-pin 3. Repair requires rerouting each microphone so that:
+The current schematic-derived net assignments correctly connect IM72D128V01
+pin 1 to paired DATA nets and pin 3 to U1 clock branches. Each of the 16 DATA
+nets has two microphones with complementary SELECT straps. The PCB itself is
+unrouted: it contains zero track segments and zero routing vias. Its saved zone
+fills and historical Gerbers must not be treated as current manufacturing data.
 
-```text
-U1 clock-fanout output  ---> microphone pin 3 (CLOCK)
-microphone pin 1 (DATA) ---> paired DATAx net ---> J1 series resistor
-```
+The detailed [schematic and PCB review](Board/smic/docs/DESIGN_REVIEW.md)
+prioritizes these revisions before routing:
 
-Do not fix this by merely renaming nets, swapping logical channels, or crossing
-the two final traces. Perform a controlled KiCad reroute, refill zones, inspect
-the acoustic-port clearances, and rerun ERC/DRC.
+- move the 32 microphone bypass capacitors closer to their VDD/GND pads;
+- move U1 toward the connector/array center, improve its local decoupling, and
+  provide optional source-series footprints on its nine used clock outputs;
+- preserve a continuous ground return, preferably with a four-layer stackup;
+- add connector-side bulk capacitance and optional filtering/protection;
+- key the board-to-FPGA interconnect and improve test access;
+- add assembly fiducials plus enclosure-compatible mounting/tooling features;
+- freeze and verify the microphone footprint, paste/mask apertures, acoustic
+  keepouts, and assembly handling instructions.
+
+These are design recommendations, not implemented hardware changes. Reassess
+component placement against the enclosure before routing.
 
 ### Manufacturing release checklist
 
-1. Fix all 32 DATA/CLOCK connections in both schematic and PCB.
+1. Finish and approve the placement changes in the detailed PCB review.
 2. Confirm U2 DNP and R18 0-ohm population for 3.3 V operation.
 3. Verify J1 orientation, pin-1 marking, cable keying, and ground continuity.
-4. Run ERC and resolve every electrical error rather than excluding it.
-5. Run PCB DRC after refilling all copper zones.
+4. Route clock, DATA, power, and ground from the corrected schematic nets.
+5. Refill zones and run KiCad 10 ERC/DRC; resolve every unintended issue.
 6. Compare all NPTH acoustic holes with `mic_acoustic_holes.csv`.
 7. Inspect solder-mask and paste apertures against the microphone datasheet.
 8. Generate and review schematic PDF, BOM, position files, Gerbers, drill files,
