@@ -7,11 +7,11 @@ simulation testbenches, a C SPI control library, mechanical files, and the
 manufacturer reference documents used for the design.
 
 > [!CAUTION]
-> The microphone PCB is not fabrication-ready. Its DATA/CLOCK net assignments
-> are corrected, but the current PCB has no tracks or routing vias and its saved
-> zones/manufacturing files are stale. Do not fabricate the existing Gerbers or
-> connect the microphone PCB to the FPGA until routing and the complete design
-> review are finished. See
+> The microphone PCB is fully routed, but it is not production-ready. KiCad
+> 10.0.8 reports 19 ERC errors, one ERC warning, 32 DRC errors, and 15 DRC
+> warnings. The current Gerbers represent the routed geometry but must not be
+> fabricated until the footprint, sound-port clearance, bypassing, power/ground
+> layout, BOM, and manufacturing release gates are resolved. See
 > [SMIC PCB design review](Board/smic/docs/DESIGN_REVIEW.md).
 
 The FPGA prototype has been synthesized, implemented, and loaded into an
@@ -50,7 +50,7 @@ from 16 FPGA inputs.
 |---|---|
 | `Board/smic/smic/` | KiCad schematic, PCB, and project files |
 | `Board/smic/docs/` | PCB review and exact acoustic-hole coordinates |
-| `Board/smic/gerber/` | Historical manufacturing export; currently blocked from fabrication |
+| `Board/smic/smic/Gerber/` | Current Gerber/drill export; blocked from fabrication by the design review |
 | `FPGA/qmtech_beamformer/rtl/` | Synthesizable-intent SystemVerilog |
 | `FPGA/qmtech_beamformer/constraints/` | XC7A100T and connector constraints |
 | `FPGA/qmtech_beamformer/scripts/` | Vivado project, synthesis, implementation, and programming automation |
@@ -73,9 +73,10 @@ tool state are ignored and should not be committed.
 | Behavioral simulations | SPI and beam-core tests pass with Icarus Verilog 12 |
 | Microphone hole geometry | All 32 NPTHs and back-silkscreen circles match the coordinate CSV |
 | Microphone schematic nets | Pin 1 DATA, pin 3 CLOCK, and complementary SELECT pairing verified by source inspection |
-| KiCad PCB routing | **Unrouted:** zero track segments and zero routing vias; three saved zone fills are stale |
-| KiCad ERC/DRC | Not rerun on the current KiCad 10 sources; required before release |
-| Microphone PCB fabrication | **Blocked** pending placement refinements, routing, ERC/DRC, and new manufacturing output |
+| KiCad PCB routing | Fully connected: 954 segments, 287 through vias, three zones, and zero unconnected pads |
+| KiCad ERC | **Fail:** 19 errors and one warning; paired PDM outputs need tri-state modeling, power intent and J1 NC need annotation, and the local U1 symbol library is unresolved |
+| KiCad DRC | **Fail:** 32 microphone NPTH-to-pad clearance errors and 15 footprint-library mismatch warnings; zero unrouted items |
+| Microphone PCB fabrication | **Blocked** pending footprint/clearance resolution, required bypassing, return-path review, released BOM/variant, clean checks, and complete manufacturing output |
 | Audio quality | Prototype only; CIC compensation, anti-alias filtering, and protocol validation remain |
 | DDR3 | Not instantiated |
 
@@ -106,8 +107,9 @@ reproducible generator is [`3D/create_internal_ring.py`](3D/create_internal_ring
 Replication still requires engineering work outside the checked-in artifacts:
 
 - A released purchasing BOM with approved manufacturer part numbers.
-- Completed microphone PCB placement/routing, reviewed ERC/DRC reports, and a
-  new manufacturing package.
+- A production-reviewed microphone PCB: the current board is routed, but its
+  ERC/DRC, microphone footprint, bypassing, return paths, and manufacturing
+  package are not released.
 - A keyed J1-to-U4 adapter PCB or a fully documented production cable drawing.
 - A released enclosure, acoustic baffle, wind protection, mounting hardware,
   and a defined microphone-to-surface port geometry. The checked-in enclosure
@@ -243,47 +245,75 @@ These values are a design summary, not a released purchasing BOM. Confirm
 manufacturer part numbers, packages, ratings, availability, polarity, assembly
 rules, and the exact U1 variant before ordering.
 
+The two 1 µF parts do not satisfy the microphone datasheet's instruction to
+place a 1 µF bypass capacitor close to each microphone VDD pad. This and the
+U1 decoupling placement are production blockers, even though all power nets are
+routed. The 74FCT3807S family supports 3.3 V, but an exact orderable TSSOP-20
+part number must be selected.
+
 ### Current PCB review and required work
 
 The current schematic-derived net assignments correctly connect IM72D128V01
 pin 1 to paired DATA nets and pin 3 to U1 clock branches. Each of the 16 DATA
-nets has two microphones with complementary SELECT straps. The PCB itself is
-unrouted: it contains zero track segments and zero routing vias. Its saved zone
-fills and historical Gerbers must not be treated as current manufacturing data.
+nets has two microphones with complementary SELECT straps. All ten U1 outputs
+are used. The PCB has 954 track segments and 287 through vias, and KiCad reports
+zero unconnected pads after zone refill.
+
+Connectivity is not a production sign-off. KiCad 10.0.8 currently reports 19
+ERC errors plus one warning and 32 DRC errors plus 15 warnings. The DRC errors
+are the 0.18 mm copper-to-acoustic-NPTH clearance at all 32 microphones versus
+the configured 0.25 mm minimum. The warnings are local microphone-footprint
+library mismatches. The generated Gerbers and drills reflect this blocked
+design and must not be ordered.
 
 The detailed [schematic and PCB review](Board/smic/docs/DESIGN_REVIEW.md)
-prioritizes these revisions before routing:
+prioritizes these revisions before production release:
 
-- move the 32 microphone bypass capacitors closer to their VDD/GND pads;
-- move U1 toward the connector/array center, improve its local decoupling, and
-  provide optional source-series footprints on its nine used clock outputs;
-- preserve a continuous ground return, preferably with a four-layer stackup;
+- create and freeze the correct project-local PG-LLGA-5-3 microphone footprint,
+  then resolve the 32 acoustic-hole clearance errors with the fabricator;
+- add the required 1 µF local bypassing at every microphone and move U1's four
+  local capacitors directly to its supply/ground pairs;
+- model the paired PDM outputs as tri-state, annotate power and no-connect
+  intent, fix the missing local symbol-library mapping, and obtain clean ERC;
+- preserve a continuous ground return, preferably with a four-layer stackup,
+  instead of relying on the split B.Cu GND/3.3 V plane and stitching vias;
+- review all ten clock branches, test-point stubs, and optional source damping
+  using oscilloscope measurements rather than connectivity alone;
 - add connector-side bulk capacitance and optional filtering/protection;
 - key the board-to-FPGA interconnect and improve test access;
 - add assembly fiducials plus enclosure-compatible mounting/tooling features;
-- freeze and verify the microphone footprint, paste/mask apertures, acoustic
-  keepouts, and assembly handling instructions.
+- add a board revision, voltage/variant markings, approved MPNs, position files,
+  and fabrication/assembly drawings.
 
 These are design recommendations, not implemented hardware changes. Reassess
-component placement against the enclosure before routing.
+component placement and acoustic cavities against the enclosure before release.
 
 ### Manufacturing release checklist
 
-1. Finish and approve the placement changes in the detailed PCB review.
-2. Confirm U2 DNP and R18 0-ohm population for 3.3 V operation.
-3. Verify J1 orientation, pin-1 marking, cable keying, and ground continuity.
-4. Route clock, DATA, power, and ground from the corrected schematic nets.
-5. Refill zones and run KiCad 10 ERC/DRC; resolve every unintended issue.
-6. Compare all NPTH acoustic holes with `mic_acoustic_holes.csv`.
-7. Inspect solder-mask and paste apertures against the microphone datasheet.
-8. Generate and review schematic PDF, BOM, position files, Gerbers, drill files,
-   IPC-356/netlist if required, and Gerber job file from one tagged revision.
-9. Review the Gerbers in an independent viewer and compare them with KiCad.
-10. Fabricate a small pilot batch, inspect it, and electrically test it before a
-    production order.
+1. Freeze the exact 3.3 V assembly variant, MPNs, project-local symbol library,
+   and corrected PG-LLGA-5-3 footprint.
+2. Add the required microphone/U1 bypassing and approve power/ground return
+   paths, clock routing, connector protection, fiducials, and mechanics.
+3. Resolve ERC by modeling real electrical intent; do not broadly exclude the
+   paired PDM output errors.
+4. Resolve every microphone hole-clearance finding with the fabricator, remove
+   stale exclusions, refill zones, and obtain reviewed clean ERC/DRC results.
+5. Re-verify J1 mapping, SELECT polarity, all clock destinations, and every
+   acoustic NPTH against `mic_acoustic_holes.csv`.
+6. Inspect solder-mask and paste apertures against the microphone datasheet.
+7. Add revision/voltage/variant markings and complete fabrication, assembly,
+   acoustic-port handling, and test specifications.
+8. Generate schematic PDF, released BOM, position files, Gerbers, drills,
+   Gerber job, and optional IPC-356 from one tagged revision.
+9. Review all outputs in an independent viewer and compare their netlist and
+   drill counts with the KiCad source.
+10. Fabricate a small pilot batch, inspect ports and reflow, and test supply,
+    clocks, all 16 PDM pairs, channel order, noise, calibration, and beam pattern
+    before authorizing production quantity.
 
-The checked-in `Board/smic/gerber/` directory predates the latest source changes
-and must not be sent to a manufacturer.
+The checked-in `Board/smic/smic/Gerber/` directory was regenerated from the
+current routed board, but it is explicitly blocked by the findings above and
+must not yet be sent to a manufacturer.
 
 ## FPGA development
 
@@ -632,8 +662,8 @@ and one-bit I2S delay against the actual receiver before relying on the stream.
 
 ## Bring-up sequence
 
-1. Correct and manufacture a reviewed microphone PCB; do not use the current
-   historical Gerbers.
+1. Resolve the production-review blockers and manufacture only a tagged,
+   reviewed microphone PCB; do not use the current blocked Gerbers.
 2. With U2 absent and R18 fitted, power only the microphone PCB from a
    current-limited 3.3 V supply. Verify resistance-to-ground before power and
    then verify the rail at U1 and several microphones.
